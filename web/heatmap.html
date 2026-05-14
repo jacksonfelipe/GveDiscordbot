@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GvE Real-Time Heatmap</title>
+    <style>
+        body { margin: 0; background: #1a1a1a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        #map-container { position: relative; width: 100vw; height: 100vh; background: url('https://i.imgur.com/8f6Zk9S.png') no-repeat center; background-size: contain; }
+        .pvp-point { 
+            position: absolute; 
+            width: 10px; height: 10px; 
+            background: rgba(255, 0, 0, 0.6); 
+            border-radius: 50%; 
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+        #ui-overlay { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; border: 1px solid #444; }
+        h1 { margin: 0; font-size: 18px; color: #ffd700; }
+        .stat { font-size: 14px; margin-top: 5px; color: #ccc; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-overlay">
+        <h1>🔥 Campo de Batalha</h1>
+        <div class="stat">PVPs recentes: <span id="pvp-count">0</span></div>
+        <div class="stat" style="color: #4CAF50;">Atualizando em tempo real...</div>
+    </div>
+
+    <div id="map-container" id="map">
+        <!-- Pontos de PVP sero inseridos aqui via JS -->
+    </div>
+
+    <script>
+        // Configuraes do Mapa (Ajustar conforme as coordenadas do seu servidor)
+        const MAP_WIDTH = 2000; // Largura virtual do mapa
+        const MAP_HEIGHT = 2000; // Altura virtual do mapa
+        
+        // Funo para converter coordenadas do L2 (X, Y) para pixels na tela
+        function convertCoords(x, y) {
+            // Essa logica precisa ser ajustada baseada no offset do seu mapa
+            // Exemplo genrico:
+            const left = ((x + 120000) / 240000) * 100;
+            const top = ((y + 120000) / 240000) * 100;
+            return { left, top };
+        }
+
+        async function updateHeatmap() {
+            try {
+                const response = await fetch('http://localhost:3001/api/heatmap/pvp');
+                const data = await response.json();
+                
+                const container = document.getElementById('map-container');
+                document.getElementById('pvp-count').innerText = data.length;
+                
+                // Limpa pontos antigos
+                document.querySelectorAll('.pvp-point').forEach(el => el.remove());
+
+                data.forEach(pvp => {
+                    const pos = convertCoords(pvp.x, pvp.y);
+                    const point = document.createElement('div');
+                    point.className = 'pvp-point';
+                    point.style.left = pos.left + '%';
+                    point.style.top = pos.top + '%';
+                    container.appendChild(point);
+                });
+            } catch (err) {
+                console.error("Erro ao carregar heatmap:", err);
+            }
+        }
+
+        // Atualiza a cada 5 segundos
+        setInterval(updateHeatmap, 5000);
+        updateHeatmap();
+    </script>
+</body>
+</html>
