@@ -42,6 +42,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Serve arquivos estticos (Mapa de Calor)
+app.use('/web', express.static(path.join(__dirname, 'web')));
+
+// Rota amigvel para o mapa
+app.get('/heatmap', (req, res) => {
+    res.sendFile(path.join(__dirname, 'web/heatmap.html'));
+});
+
 // Rota de Doao (Avisa no Discord)
 app.all('/api/donations/notify', async (req, res) => {
     const char_name = req.query.char_name || req.body.char_name;
