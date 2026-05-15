@@ -62,34 +62,49 @@ app.get('/', (req, res) => {
     `);
 });
 
-// Rota de Doao (Avisa no Discord)
+// Rota de Doação (Avisa no Discord)
 app.all('/api/donations/notify', async (req, res) => {
     const char_name = req.query.char_name || req.body.char_name;
     const coins = req.query.coins || req.body.coins;
-    
+
     console.log(`[NOTIFY] Recebida tentativa de aviso: ${char_name} - ${coins} coins`);
 
-    if (!char_name || !coins) return res.status(400).send('Missing data');
+    if (!char_name || !coins) {
+        console.log(`[NOTIFY] Erro: Dados faltando (Char: ${char_name}, Coins: ${coins})`);
+        return res.status(400).send('Missing data');
+    }
 
     try {
-        // Encontra o canal de anúncios (busca por nome ou ID)
-        const channel = client.channels.cache.find(c => c.name.includes('anúncios') || c.id === '1504617416805333705');
-        
+        // Busca o canal de forma mais inteligente
+        const channel = client.channels.cache.find(c =>
+            c.name.toLowerCase().includes('doação') ||
+            c.name.toLowerCase().includes('doacao') ||
+            c.name.toLowerCase().includes('donate') ||
+            c.name.toLowerCase().includes('anuncio') ||
+            c.id === '1504617416805333705' // Mantém o ID anterior por precaução
+        );
+
         if (channel) {
+            console.log(`[NOTIFY] Enviando anúncio para o canal: #${channel.name} (${channel.id})`);
             const embed = new EmbedBuilder()
                 .setTitle('💎 Nova Doação Confirmada!')
                 .setDescription(`O jogador **${char_name}** acaba de adquirir **${coins} P-Coins**!`)
                 .addFields({ name: 'Status', value: '✅ Entrega Automática Concluída', inline: true })
                 .setColor('#00ff00')
+                .setThumbnail('https://l2jpremium.com.br/assets/images/pcoin.png') // Ícone de moeda opcional
                 .setFooter({ text: 'Obrigado por apoiar o L2JPremium!' })
                 .setTimestamp();
 
             await channel.send({ embeds: [embed] });
+            console.log(`[NOTIFY] Sucesso: Anúncio enviado para ${char_name}`);
+        } else {
+            console.log(`[NOTIFY] ALERTA: Nenhum canal de anúncios encontrado!`);
+            console.log(`[NOTIFY] Canais disponíveis para o bot:`, client.channels.cache.map(c => `${c.name} (${c.id})`).join(', '));
         }
-        
+
         res.json({ success: true });
     } catch (err) {
-        console.error(err);
+        console.error(`[NOTIFY] Erro fatal ao enviar anúncio:`, err);
         res.status(500).json({ error: 'Erro ao enviar anúncio' });
     }
 });

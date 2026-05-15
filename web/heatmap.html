@@ -100,8 +100,9 @@
         <h1>BATTLEFIELD RADAR</h1>
         <div class="stat">Sincronização Ativa • <span id="pvp-count" style="color:#fff; font-weight:bold;">0</span> Players</div>
         <div class="legend">
-            <div class="legend-item"><span style="width:10px;height:100%;background:#ff4444;border-radius:2px;display:inline-block"></span> Faction A (Varka)</div>
-            <div class="legend-item"><span style="width:10px;height:100%;background:#4444ff;border-radius:2px;display:inline-block"></span> Faction B (Ketra)</div>
+            <div class="legend-item"><span style="width:10px;height:10px;background:#4444ff;border-radius:50%;display:inline-block"></span> Angel</div>
+            <div class="legend-item"><span style="width:10px;height:10px;background:#ff4444;border-radius:50%;display:inline-block"></span> Evil</div>
+            <div class="legend-item"><span style="width:10px;height:10px;background:#ffffff;border-radius:50%;display:inline-block"></span> Neutro</div>
         </div>
     </div>
 
@@ -215,22 +216,21 @@
                     point.style.left = pos.left + '%';
                     point.style.top = pos.top + '%';
 
-                    let color = '#ffd700';
+                    let color = '#ffffff'; // Sem facção (Branco Vivo)
                     if (char.faction) {
                         const f = char.faction.toString().toLowerCase();
-                        if (f.includes('varka') || f === '1') color = '#ff4444';
-                        if (f.includes('ketra') || f === '2') color = '#4444ff';
+                        if (f.includes('angel') || f === '1') color = '#4444ff'; // Angel (Azul)
+                        if (f.includes('evil') || f === '2') color = '#ff4444'; // Evil (Vermelho)
                     }
 
                     point.style.background = isTeleport ? '#fff' : color;
-                    point.style.boxShadow = isTeleport ? `0 0 40px #fff` : `0 0 20px ${color}`;
+                    point.style.boxShadow = isTeleport ? `0 0 40px #fff` : `0 0 15px ${color}`;
                     
-                    // Atualiza conteúdo
+                    // Informação ao passar o mouse
+                    point.title = `${char.char_name} | Local: ${locName}`;
+                    
+                    // Conteúdo interno (apenas o pulso)
                     point.innerHTML = `
-                        <div class="char-name" style="color:${color}; text-align:center;">
-                            ${char.char_name}<br>
-                            <span style="font-size:7px;opacity:0.7;font-weight:normal;">${locName}</span>
-                        </div>
                         <div class="pulse" style="border:1.5px solid ${isTeleport ? '#fff' : color}"></div>
                     `;
 
