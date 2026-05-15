@@ -3,41 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GvE Real-Time Heatmap</title>
+    <title>GvE Tactical Radar</title>
     <style>
-        body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 0; background: #050505; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Inter', sans-serif; overflow: hidden; color: #fff; }
         
-        #map-wrapper {
+        #radar-container {
             position: relative;
-            width: 100vh; /* Mantém o mapa quadrado ou na proporção da imagem */
-            height: 100vh;
-            max-width: 100vw;
-            box-shadow: 0 0 50px #000;
-            background: #111;
+            width: 95vh;
+            height: 95vh;
+            background: radial-gradient(circle, #1a1a1a 0%, #050505 100%);
+            border: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 0 100px rgba(0,0,0,1);
             overflow: hidden;
         }
 
-        #map-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.8;
-            filter: brightness(0.6) contrast(1.2);
+        #grid {
+            position: absolute;
+            width: 200%; height: 200%;
+            top: -50%; left: -50%;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+
+        .city-label {
+            position: absolute;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+            pointer-events: none;
+            padding-bottom: 2px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
         .pvp-point { 
             position: absolute; 
-            width: 12px; height: 12px; 
+            width: 10px; height: 10px; 
             border-radius: 50%; 
             transform: translate(-50%, -50%);
-            z-index: 5;
-            cursor: pointer;
-            transition: all 0.3s;
+            z-index: 50;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        .pvp-point:hover {
-            transform: translate(-50%, -50%) scale(2);
-            z-index: 10;
+        .char-name {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            font-weight: bold;
+            background: rgba(0,0,0,0.85);
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .pulse {
@@ -46,111 +71,130 @@
             height: 100%;
             border-radius: 50%;
             animation: pulse-animation 2s infinite;
-            pointer-events: none;
         }
 
         @keyframes pulse-animation {
             0% { transform: scale(1); opacity: 0.8; }
-            100% { transform: scale(4); opacity: 0; }
+            100% { transform: scale(5); opacity: 0; }
         }
 
         #ui-overlay { 
-            position: absolute; top: 20px; left: 20px; 
-            background: rgba(15, 15, 15, 0.9); 
-            padding: 20px; border-radius: 12px; 
-            border: 1px solid #ffd700; 
-            z-index: 100;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            pointer-events: none;
+            position: absolute; top: 30px; left: 30px; 
+            background: rgba(10, 10, 10, 0.9); 
+            padding: 20px; border-radius: 10px; 
+            border-left: 4px solid #ffd700; 
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
         }
-        h1 { margin: 0 0 10px 0; font-size: 20px; color: #ffd700; text-transform: uppercase; letter-spacing: 2px; }
-        .stat { font-size: 14px; margin-bottom: 8px; color: #eee; display: flex; align-items: center; }
-        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        h1 { margin: 0 0 5px 0; font-size: 20px; color: #ffd700; font-weight: 900; letter-spacing: 1px; }
+        .stat { font-size: 13px; margin-bottom: 5px; color: #aaa; }
+        .legend { margin-top: 15px; display: flex; gap: 20px; font-size: 12px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
     </style>
 </head>
 <body>
 
     <div id="ui-overlay">
-        <h1>⚔️ GvE Live Activity</h1>
-        <div class="stat">🟢 Jogadores Online: <span id="pvp-count" style="font-weight: bold; margin-left: 5px;">0</span></div>
-        <div class="stat"><span class="dot" style="background: #ff4444;"></span> Faction A (Varka)</div>
-        <div class="stat"><span class="dot" style="background: #4444ff;"></span> Faction B (Ketra)</div>
-        <div class="stat" style="color: #4CAF50; font-size: 12px; margin-top: 10px;">📡 Sincronizado com o Servidor</div>
+        <h1>BATTLEFIELD RADAR</h1>
+        <div class="stat">Sincronização Ativa • <span id="pvp-count" style="color:#fff; font-weight:bold;">0</span> Players</div>
+        <div class="legend">
+            <div class="legend-item"><span style="width:10px;height:100%;background:#ff4444;border-radius:2px;display:inline-block"></span> Faction A (Varka)</div>
+            <div class="legend-item"><span style="width:10px;height:100%;background:#4444ff;border-radius:2px;display:inline-block"></span> Faction B (Ketra)</div>
+        </div>
     </div>
 
-    <div id="map-wrapper">
-        <img id="map-img" src="/web/map.jpg">
-        <div id="points-container"></div>
+    <div id="radar-container">
+        <div id="grid"></div>
+        <div id="cities-layer"></div>
+        <div id="players-layer"></div>
     </div>
 
     <script>
-        // Fórmula de calibração para o World Map padrão do Lineage 2
-        // O mundo do L2 vai de X: -131072 até ~230000 e Y: -262144 até 262144
-        // Calibração Milimétrica para o World Map Oficial do Lineage 2
+        // Coordenadas Reais das Cidades (Calibração Fixa Baseada no Core)
+        const CITIES = [
+            { name: "Talking Island", x: -84081, y: 243227 },
+            { name: "Gludio", x: -12672, y: 122776 },
+            { name: "Dion", x: 15666, y: 142983 },
+            { name: "Giran", x: 83448, y: 148607 },
+            { name: "Oren", x: 82956, y: 53162 },
+            { name: "Aden", x: 146604, y: 25752 },
+            { name: "Hunters Village", x: 116819, y: 76992 },
+            { name: "Heine", x: 111394, y: 219154 },
+            { name: "Goddard", x: 147450, y: -56315 },
+            { name: "Rune", x: 43503, y: -47732 },
+            { name: "Schuttgart", x: 87386, y: -143246 }
+        ];
+
         function convertCoords(x, y) {
-            // Dimensões do mundo L2 (padrão Interlude/Classic)
-            const mapXMin = -131072;
-            const mapXMax = 229376;
-            const mapYMin = -262144;
-            const mapYMax = 262144;
+            // Range Total do Mundo L2
+            const xMin = -131072;
+            const xMax = 229376;
+            const yMin = -262144;
+            const yMax = 262144;
 
-            const mapWidth = mapXMax - mapXMin; // ~360448
-            const mapHeight = mapYMax - mapYMin; // ~524288
-
-            // Cálculo da posição em porcentagem
-            let left = ((x - mapXMin) / mapWidth) * 100;
-            let top = ((y - mapYMin) / mapHeight) * 100;
-
-            // Inversão do Y: No L2, maior Y é Norte (cima). No HTML, menor top é cima.
-            return { 
-                left: left, 
-                top: (100 - top) 
-            };
+            let left = ((x - xMin) / (xMax - xMin)) * 100;
+            let top = 100 - (((y - yMin) / (yMax - yMin)) * 100);
+            
+            return { left, top };
         }
 
-        async function updateHeatmap() {
+        // Renderiza Cidades (Camada Estática)
+        const citiesLayer = document.getElementById('cities-layer');
+        CITIES.forEach(city => {
+            const pos = convertCoords(city.x, city.y);
+            const label = document.createElement('div');
+            label.className = 'city-label';
+            label.style.left = pos.left + '%';
+            label.style.top = pos.top + '%';
+            label.innerText = city.name;
+            citiesLayer.appendChild(label);
+        });
+
+        async function updateRadar() {
             try {
                 const response = await fetch('/api/heatmap/pvp');
                 const data = await response.json();
                 
-                const container = document.getElementById('points-container');
+                const layer = document.getElementById('players-layer');
                 document.getElementById('pvp-count').innerText = data.length;
-                
-                container.innerHTML = ''; // Limpa pontos
+                layer.innerHTML = '';
 
                 data.forEach(char => {
                     const pos = convertCoords(char.x, char.y);
-                    
-                    const pointWrapper = document.createElement('div');
-                    pointWrapper.className = 'pvp-point';
-                    pointWrapper.style.left = pos.left + '%';
-                    pointWrapper.style.top = pos.top + '%';
-                    pointWrapper.title = `${char.char_name} (${char.faction || 'Neutro'})`;
+                    const point = document.createElement('div');
+                    point.className = 'pvp-point';
+                    point.style.left = pos.left + '%';
+                    point.style.top = pos.top + '%';
 
-                    let color = '#ffd700';
+                    let color = '#ffd700'; // Neutro
                     if (char.faction) {
-                        const f = char.faction.toLowerCase();
+                        const f = char.faction.toString().toLowerCase();
                         if (f.includes('varka') || f === '1') color = '#ff4444';
                         if (f.includes('ketra') || f === '2') color = '#4444ff';
                     }
 
-                    pointWrapper.style.background = color;
-                    pointWrapper.style.boxShadow = `0 0 10px ${color}, 0 0 20px ${color}`;
+                    point.style.background = color;
+                    point.style.boxShadow = `0 0 20px ${color}`;
 
+                    const nameTag = document.createElement('div');
+                    nameTag.className = 'char-name';
+                    nameTag.innerText = char.char_name;
+                    nameTag.style.color = color;
+                    
                     const pulse = document.createElement('div');
                     pulse.className = 'pulse';
-                    pulse.style.border = `2px solid ${color}`;
-                    
-                    pointWrapper.appendChild(pulse);
-                    container.appendChild(pointWrapper);
+                    pulse.style.border = `1.5px solid ${color}`;
+
+                    point.appendChild(nameTag);
+                    point.appendChild(pulse);
+                    layer.appendChild(point);
                 });
-            } catch (err) {
-                console.error("Erro ao carregar dados:", err);
-            }
+            } catch (err) { console.error("Erro no Radar:", err); }
         }
 
-        setInterval(updateHeatmap, 5000);
-        updateHeatmap();
+        setInterval(updateRadar, 3000);
+        updateRadar();
     </script>
 </body>
 </html>
