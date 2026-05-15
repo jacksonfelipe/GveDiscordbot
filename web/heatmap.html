@@ -111,64 +111,57 @@
     </div>
 
     <script>
-        // Coordenadas Reais das Cidades (Calibração Fixa Baseada no Core)
-        const CITIES = [
-            { name: "Talking Island", x: -84081, y: 243227 },
-            { name: "Gludio", x: -12672, y: 122776 },
-            { name: "Dion", x: 15666, y: 142983 },
-            { name: "Giran", x: 83448, y: 148607 },
-            { name: "Oren", x: 82956, y: 53162 },
-            { name: "Aden", x: 146604, y: 25752 },
-            { name: "Hunters Village", x: 116819, y: 76992 },
-            { name: "Heine", x: 111394, y: 219154 },
-            { name: "Goddard", x: 147450, y: -56315 },
-            { name: "Rune", x: 43503, y: -47732 },
-            { name: "Schuttgart", x: 87386, y: -143246 }
-        ];
+        let ZONES = [];
+        let lastPositions = {};
+
+        // Range Total do Mundo L2
+        const xMin = -131072;
+        const xMax = 229376;
+        const yMin = -262144;
+        const yMax = 262144;
 
         function convertCoords(x, y) {
-            // Range Total do Mundo L2
-            const xMin = -131072;
-            const xMax = 229376;
-            const yMin = -262144;
-            const yMax = 262144;
-
             let left = ((x - xMin) / (xMax - xMin)) * 100;
             let top = 100 - (((y - yMin) / (yMax - yMin)) * 100);
-            
             return { left, top };
         }
 
-        // Renderiza Cidades (Camada Estática)
-        const citiesLayer = document.getElementById('cities-layer');
-        CITIES.forEach(city => {
-            const pos = convertCoords(city.x, city.y);
-            const label = document.createElement('div');
-            label.className = 'city-label';
-            label.style.left = pos.left + '%';
-            label.style.top = pos.top + '%';
-            label.innerText = city.name;
-            citiesLayer.appendChild(label);
-        });
+        // Carrega Zonas do Banco
+        async function loadZones() {
+            try {
+                const response = await fetch('/api/heatmap/zones');
+                ZONES = await response.json();
+                
+                const citiesLayer = document.getElementById('cities-layer');
+                citiesLayer.innerHTML = ''; // Limpa
+                
+                ZONES.forEach(zone => {
+                    const pos = convertCoords(zone.x, zone.y);
+                    const label = document.createElement('div');
+                    label.className = 'city-label';
+                    label.style.left = pos.left + '%';
+                    label.style.top = pos.top + '%';
+                    label.innerText = zone.name;
+                    if (zone.type === 'fort') label.style.color = '#ffd700';
+                    citiesLayer.appendChild(label);
+                });
+            } catch (err) { console.error("Erro ao carregar zonas:", err); }
+        }
 
-        // Função para encontrar a localidade mais próxima
         function getNearestLocation(x, y) {
-            let nearest = "Wasteland";
+            let nearest = "Unknown Area";
             let minDist = Infinity;
             
-            CITIES.forEach(city => {
-                const dist = Math.sqrt(Math.pow(x - city.x, 2) + Math.pow(y - city.y, 2));
+            ZONES.forEach(zone => {
+                const dist = Math.sqrt(Math.pow(x - zone.x, 2) + Math.pow(y - zone.y, 2));
                 if (dist < minDist) {
                     minDist = dist;
-                    nearest = city.name;
+                    nearest = zone.name;
                 }
             });
             
-            return minDist < 25000 ? nearest : nearest + " Outskirts";
+            return minDist < 15000 ? nearest : nearest + " Outskirts";
         }
-
-        // Estado para rastrear posições anteriores e detectar teleporte
-        let lastPositions = {};
 
         async function updateRadar() {
             try {
@@ -238,7 +231,7 @@
         }
 
         setInterval(updateRadar, 3000);
-        updateRadar();
+        loadZones().then(updateRadar);
     </script>
 </body>
 </html>

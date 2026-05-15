@@ -2,6 +2,30 @@ const express = require('express');
 const router = express.Router();
 const db = require('./db');
 
+// Endpoint para buscar zonas de interesse dinâmicas do banco
+router.get('/zones', async (req, res) => {
+    try {
+        // Busca Teleportes Customizados
+        const [teleports] = await db.query(`
+            SELECT description as name, loc_x as x, loc_y as y, 'teleport' as type 
+            FROM custom_teleports
+        `);
+
+        // Busca Territórios GvE (Fortes) com base na média dos spawns deles
+        const [forts] = await db.query(`
+            SELECT t.fort_name as name, AVG(s.x) as x, AVG(s.y) as y, 'fort' as type
+            FROM gve_territories t
+            JOIN fort_spawnlist s ON t.fort_id = s.fortId
+            GROUP BY t.fort_id
+        `);
+
+        res.json([...teleports, ...forts]);
+    } catch (err) {
+        console.error('Erro ao buscar zonas:', err);
+        res.json([]);
+    }
+});
+
 // Endpoint para buscar locais de jogadores online (Heatmap de Atividade)
 router.get('/pvp', async (req, res) => {
     try {
