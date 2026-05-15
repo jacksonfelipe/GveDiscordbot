@@ -139,27 +139,56 @@
             return { left, top };
         }
 
-        // Carrega Zonas do Banco (Apenas nomes únicos e importantes)
+        // Cidades Principais do Lineage 2 (Referência Fixa)
+        const MAJOR_CITIES = [
+            { name: "Giran", x: 82698, y: 148638 },
+            { name: "Aden", x: 147450, y: 25934 },
+            { name: "Dion", x: 19131, y: 145246 },
+            { name: "Gludio", x: -12672, y: 122776 },
+            { name: "Gludin", x: -82956, y: 150824 },
+            { name: "Oren", x: 82323, y: 55271 },
+            { name: "Hunters", x: 116743, y: 76288 },
+            { name: "Goddard", x: 147743, y: -56707 },
+            { name: "Rune", x: 43536, y: -48530 },
+            { name: "Schuttgart", x: 87313, y: -140410 },
+            { name: "Heine", x: 110416, y: 219760 },
+            { name: "Ivory Tower", x: 85333, y: 16186 }
+        ];
+
+        // Carrega Zonas do Banco e Mescla com Cidades Fixas
         async function loadZones() {
             try {
                 const response = await fetch('/api/heatmap/zones');
                 const rawZones = await response.json();
                 
-                // Filtra para não repetir nomes e priorizar Fortes/Cidades
-                const uniqueNames = new Set();
+                const citiesLayer = document.getElementById('cities-layer');
+                citiesLayer.innerHTML = ''; 
+
+                // 1. Renderiza Cidades Fixas
+                MAJOR_CITIES.forEach(city => {
+                    const pos = convertCoords(city.x, city.y);
+                    const label = document.createElement('div');
+                    label.className = 'city-label';
+                    label.style.left = pos.left + '%';
+                    label.style.top = pos.top + '%';
+                    label.style.color = '#fff';
+                    label.style.fontWeight = 'bold';
+                    label.style.fontSize = '10px';
+                    label.innerText = city.name.toUpperCase();
+                    citiesLayer.appendChild(label);
+                });
+
+                // 2. Filtra e Renderiza Zonas Dinâmicas (Fortes, etc)
+                const uniqueNames = new Set(MAJOR_CITIES.map(c => c.name.toLowerCase()));
                 ZONES = rawZones.filter(z => {
-                    if (uniqueNames.has(z.name)) return false;
-                    uniqueNames.add(z.name);
+                    if (uniqueNames.has(z.name.toLowerCase())) return false;
+                    uniqueNames.add(z.name.toLowerCase());
                     return true;
                 });
                 
-                const citiesLayer = document.getElementById('cities-layer');
-                citiesLayer.innerHTML = ''; 
-                
                 ZONES.forEach(zone => {
-                    // Só mostra no fundo se for um Forte ou Cidade Principal
-                    const isMajor = zone.type === 'fort' || !zone.name.includes('Outskirts');
-                    if (isMajor && zone.name.length < 20) {
+                    const isMajor = zone.type === 'fort' || (!zone.name.includes('Outskirts') && zone.name.length < 15);
+                    if (isMajor) {
                         const pos = convertCoords(zone.x, zone.y);
                         const label = document.createElement('div');
                         label.className = 'city-label';
