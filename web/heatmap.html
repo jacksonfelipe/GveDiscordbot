@@ -53,16 +53,17 @@
 
         .char-name {
             position: absolute;
-            top: -18px;
+            top: -16px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 10px;
+            font-size: 8px;
             font-weight: bold;
-            background: rgba(0,0,0,0.85);
-            padding: 2px 6px;
-            border-radius: 4px;
+            background: rgba(0,0,0,0.7);
+            padding: 1px 4px;
+            border-radius: 3px;
             white-space: nowrap;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.05);
+            pointer-events: none;
         }
 
         .pulse {
@@ -126,24 +127,39 @@
             return { left, top };
         }
 
-        // Carrega Zonas do Banco
+        // Carrega Zonas do Banco (Apenas nomes únicos e importantes)
         async function loadZones() {
             try {
                 const response = await fetch('/api/heatmap/zones');
-                ZONES = await response.json();
+                const rawZones = await response.json();
+                
+                // Filtra para não repetir nomes e priorizar Fortes/Cidades
+                const uniqueNames = new Set();
+                ZONES = rawZones.filter(z => {
+                    if (uniqueNames.has(z.name)) return false;
+                    uniqueNames.add(z.name);
+                    return true;
+                });
                 
                 const citiesLayer = document.getElementById('cities-layer');
-                citiesLayer.innerHTML = ''; // Limpa
+                citiesLayer.innerHTML = ''; 
                 
                 ZONES.forEach(zone => {
-                    const pos = convertCoords(zone.x, zone.y);
-                    const label = document.createElement('div');
-                    label.className = 'city-label';
-                    label.style.left = pos.left + '%';
-                    label.style.top = pos.top + '%';
-                    label.innerText = zone.name;
-                    if (zone.type === 'fort') label.style.color = '#ffd700';
-                    citiesLayer.appendChild(label);
+                    // Só mostra no fundo se for um Forte ou Cidade Principal
+                    const isMajor = zone.type === 'fort' || !zone.name.includes('Outskirts');
+                    if (isMajor && zone.name.length < 20) {
+                        const pos = convertCoords(zone.x, zone.y);
+                        const label = document.createElement('div');
+                        label.className = 'city-label';
+                        label.style.left = pos.left + '%';
+                        label.style.top = pos.top + '%';
+                        label.innerText = zone.name;
+                        if (zone.type === 'fort') {
+                            label.style.color = 'rgba(255, 215, 0, 0.6)';
+                            label.style.fontWeight = 'bold';
+                        }
+                        citiesLayer.appendChild(label);
+                    }
                 });
             } catch (err) { console.error("Erro ao carregar zonas:", err); }
         }
@@ -226,6 +242,28 @@
                     const id = p.id.replace('player-', '');
                     if (!currentIds.has(id)) p.remove();
                 });
+
+                // Auto-Pan (Câmera Móvel): Centraliza nos jogadores
+                if (data.length > 0) {
+                    let avgLeft = 0, avgTop = 0;
+                    data.forEach(char => {
+                        const pos = convertCoords(char.x, char.y);
+                        avgLeft += pos.left;
+                        avgTop += pos.top;
+                    });
+                    
+                    avgLeft /= data.length;
+                    avgTop /= data.length;
+                    
+                    const shiftX = 50 - avgLeft;
+                    const shiftY = 50 - avgTop;
+                    
+                    const layers = [citiesLayer, layer, document.getElementById('grid')];
+                    layers.forEach(l => {
+                        l.style.transition = 'transform 2s cubic-bezier(0.1, 0, 0.3, 1)';
+                        l.style.transform = `translate(${shiftX}%, ${shiftY}%)`;
+                    });
+                }
 
             } catch (err) { console.error("Erro no Radar:", err); }
         }
