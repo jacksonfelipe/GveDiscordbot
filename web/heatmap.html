@@ -151,6 +151,25 @@
             citiesLayer.appendChild(label);
         });
 
+        // Função para encontrar a localidade mais próxima
+        function getNearestLocation(x, y) {
+            let nearest = "Wasteland";
+            let minDist = Infinity;
+            
+            CITIES.forEach(city => {
+                const dist = Math.sqrt(Math.pow(x - city.x, 2) + Math.pow(y - city.y, 2));
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearest = city.name;
+                }
+            });
+            
+            return minDist < 25000 ? nearest : nearest + " Outskirts";
+        }
+
+        // Estado para rastrear posições anteriores e detectar teleporte
+        let lastPositions = {};
+
         async function updateRadar() {
             try {
                 const response = await fetch('/api/heatmap/pvp');
@@ -158,38 +177,63 @@
                 
                 const layer = document.getElementById('players-layer');
                 document.getElementById('pvp-count').innerText = data.length;
-                layer.innerHTML = '';
+                
+                // Em vez de limpar tudo, vamos apenas atualizar ou remover
+                const currentIds = new Set();
 
                 data.forEach(char => {
+                    const charId = char.char_name;
+                    currentIds.add(charId);
                     const pos = convertCoords(char.x, char.y);
-                    const point = document.createElement('div');
-                    point.className = 'pvp-point';
+                    const locName = getNearestLocation(char.x, char.y);
+                    
+                    let point = document.getElementById(`player-${charId}`);
+                    let isTeleport = false;
+
+                    // Detecta Teleporte (Mudança brusca de posição)
+                    if (lastPositions[charId]) {
+                        const dist = Math.sqrt(Math.pow(char.x - lastPositions[charId].x, 2) + Math.pow(char.y - lastPositions[charId].y, 2));
+                        if (dist > 5000) isTeleport = true;
+                    }
+
+                    if (!point) {
+                        point = document.createElement('div');
+                        point.id = `player-${charId}`;
+                        point.className = 'pvp-point';
+                        layer.appendChild(point);
+                    }
+
                     point.style.left = pos.left + '%';
                     point.style.top = pos.top + '%';
 
-                    let color = '#ffd700'; // Neutro
+                    let color = '#ffd700';
                     if (char.faction) {
                         const f = char.faction.toString().toLowerCase();
                         if (f.includes('varka') || f === '1') color = '#ff4444';
                         if (f.includes('ketra') || f === '2') color = '#4444ff';
                     }
 
-                    point.style.background = color;
-                    point.style.boxShadow = `0 0 20px ${color}`;
-
-                    const nameTag = document.createElement('div');
-                    nameTag.className = 'char-name';
-                    nameTag.innerText = char.char_name;
-                    nameTag.style.color = color;
+                    point.style.background = isTeleport ? '#fff' : color;
+                    point.style.boxShadow = isTeleport ? `0 0 40px #fff` : `0 0 20px ${color}`;
                     
-                    const pulse = document.createElement('div');
-                    pulse.className = 'pulse';
-                    pulse.style.border = `1.5px solid ${color}`;
+                    // Atualiza conteúdo
+                    point.innerHTML = `
+                        <div class="char-name" style="color:${color}; text-align:center;">
+                            ${char.char_name}<br>
+                            <span style="font-size:7px;opacity:0.7;font-weight:normal;">${locName}</span>
+                        </div>
+                        <div class="pulse" style="border:1.5px solid ${isTeleport ? '#fff' : color}"></div>
+                    `;
 
-                    point.appendChild(nameTag);
-                    point.appendChild(pulse);
-                    layer.appendChild(point);
+                    lastPositions[charId] = { x: char.x, y: char.y };
                 });
+
+                // Remove quem deslogou
+                document.querySelectorAll('.pvp-point').forEach(p => {
+                    const id = p.id.replace('player-', '');
+                    if (!currentIds.has(id)) p.remove();
+                });
+
             } catch (err) { console.error("Erro no Radar:", err); }
         }
 
