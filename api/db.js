@@ -3,9 +3,9 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASS || 'senha',
+    host: process.env.DB_HOST || '51.222.146.73',
+    user: process.env.DB_USER || 'website',
+    password: process.env.DB_PASS || 'ZiQ277=o2B2R9$',
     database: process.env.DB_NAME || 'l2jpremiumgve',
     waitForConnections: true,
     connectionLimit: 10,

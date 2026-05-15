@@ -62,16 +62,18 @@ app.get('/', (req, res) => {
     `);
 });
 
-// Rota de Doação (Avisa no Discord)
+// Rota de Doação (Avisa no Discord com Inteligência de Facção)
 app.all('/api/donations/notify', async (req, res) => {
-    const char_name = req.query.char_name || req.body.char_name;
-    const coins = req.query.coins || req.body.coins;
-
+    // Uso de optional chaining para evitar o erro de 'undefined'
+    const char_name = req.query?.char_name || req.body?.char_name;
+    const coins = req.query?.coins || req.body?.coins;
+    const db = require('./api/db');
+    
     console.log(`[NOTIFY] Recebida tentativa de aviso: ${char_name} - ${coins} coins`);
 
     if (!char_name || !coins) {
-        console.log(`[NOTIFY] Erro: Dados faltando (Char: ${char_name}, Coins: ${coins})`);
-        return res.status(400).send('Missing data');
+        console.log(`[NOTIFY] Erro: Dados incompletos recebidos`);
+        return res.status(400).json({ error: 'Missing char_name or coins' });
     }
 
     try {
