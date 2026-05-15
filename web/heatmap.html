@@ -5,58 +5,99 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GvE Real-Time Heatmap</title>
     <style>
-        body { margin: 0; padding: 0; background: #111; overflow: hidden; font-family: sans-serif; }
-        #map-container { 
-            position: relative; 
-            width: 100vw; 
-            height: 100vh; 
-            background: #111 url('map.jpg'), url('https://legacy-lineage2.com/images/knowledge/Worldmap_Chroncicle2-Aden_E_big.jpg'); 
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: contain; 
-            image-rendering: auto;
+        body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        #map-wrapper {
+            position: relative;
+            width: 100vh; /* Mantém o mapa quadrado ou na proporção da imagem */
+            height: 100vh;
+            max-width: 100vw;
+            box-shadow: 0 0 50px #000;
+            background: #111;
+            overflow: hidden;
         }
+
+        #map-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.8;
+            filter: brightness(0.6) contrast(1.2);
+        }
+
         .pvp-point { 
             position: absolute; 
-            width: 15px; height: 15px; 
-            background: rgba(255, 0, 0, 0.7); 
+            width: 12px; height: 12px; 
             border-radius: 50%; 
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.9);
-            animation: pulse 1s infinite;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            cursor: pointer;
+            transition: all 0.3s;
         }
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.9; }
-            100% { transform: scale(4); opacity: 0; }
-        }
-        #ui-overlay { 
-            position: absolute; top: 20px; left: 20px; 
-            background: rgba(0,0,0,0.8); 
-            padding: 15px; border-radius: 10px; 
-            border: 1px solid #ffd700; 
+
+        .pvp-point:hover {
+            transform: translate(-50%, -50%) scale(2);
             z-index: 10;
         }
-        h1 { margin: 0; font-size: 18px; color: #ffd700; }
-        .stat { font-size: 14px; margin-top: 5px; color: #ccc; }
+
+        .pulse {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            animation: pulse-animation 2s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes pulse-animation {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(4); opacity: 0; }
+        }
+
+        #ui-overlay { 
+            position: absolute; top: 20px; left: 20px; 
+            background: rgba(15, 15, 15, 0.9); 
+            padding: 20px; border-radius: 12px; 
+            border: 1px solid #ffd700; 
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        h1 { margin: 0 0 10px 0; font-size: 20px; color: #ffd700; text-transform: uppercase; letter-spacing: 2px; }
+        .stat { font-size: 14px; margin-bottom: 8px; color: #eee; display: flex; align-items: center; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
     </style>
 </head>
 <body>
 
     <div id="ui-overlay">
         <h1>⚔️ GvE Live Activity</h1>
-        <div class="stat">Jogadores Online: <span id="pvp-count">0</span></div>
-        <div class="stat"><span style="color: #ff4444;">●</span> Faction A | <span style="color: #4444ff;">●</span> Faction B</div>
-        <div class="stat" style="color: #4CAF50;">Atualizando em tempo real...</div>
+        <div class="stat">🟢 Jogadores Online: <span id="pvp-count" style="font-weight: bold; margin-left: 5px;">0</span></div>
+        <div class="stat"><span class="dot" style="background: #ff4444;"></span> Faction A (Varka)</div>
+        <div class="stat"><span class="dot" style="background: #4444ff;"></span> Faction B (Ketra)</div>
+        <div class="stat" style="color: #4CAF50; font-size: 12px; margin-top: 10px;">📡 Sincronizado com o Servidor</div>
     </div>
 
-    <div id="map-container">
-        <!-- Atividade ser inserida aqui via JS -->
+    <div id="map-wrapper">
+        <img id="map-img" src="https://i.imgur.com/vR0F7zS.jpg" onerror="this.src='https://l2wiki.com/classic/images/7/77/World_Map.jpg'">
+        <div id="points-container"></div>
     </div>
 
     <script>
+        // Fórmula de calibração para o World Map padrão do Lineage 2
+        // O mundo do L2 vai de X: -131072 até ~230000 e Y: -262144 até 262144
         function convertCoords(x, y) {
-            // Converso padro L2 (pode precisar de ajuste dependendo do mapa)
-            const left = ((x + 131072) / 524288) * 100;
-            const top = ((y + 262144) / 524288) * 100;
+            // Ajuste fino baseado na proporção da imagem do mapa mundial
+            const mapWidth = 360448; // Largura total em unidades do jogo
+            const mapHeight = 524288; // Altura total em unidades do jogo
+            const offsetX = 131072;   // Offset para zerar o X
+            const offsetY = 262144;   // Offset para zerar o Y
+
+            let left = ((x + offsetX) / mapWidth) * 100;
+            let top = ((y + offsetY) / mapHeight) * 100;
+
+            // Inversão ou ajustes finos podem ser necessários dependendo da imagem
+            // Para o mapa padrão, o Y cresce para baixo na tela, mas no jogo o Y negativo é sul.
             return { left, top };
         }
 
@@ -65,36 +106,39 @@
                 const response = await fetch('/api/heatmap/pvp');
                 const data = await response.json();
                 
-                const container = document.getElementById('map-container');
+                const container = document.getElementById('points-container');
                 document.getElementById('pvp-count').innerText = data.length;
                 
-                document.querySelectorAll('.pvp-point').forEach(el => el.remove());
+                container.innerHTML = ''; // Limpa pontos
 
                 data.forEach(char => {
                     const pos = convertCoords(char.x, char.y);
-                    const point = document.createElement('div');
-                    point.className = 'pvp-point';
                     
-                    // Cor baseada na facção
-                    let color = 'rgba(255, 215, 0, 0.7)'; // Neutro (Dourado)
+                    const pointWrapper = document.createElement('div');
+                    pointWrapper.className = 'pvp-point';
+                    pointWrapper.style.left = pos.left + '%';
+                    pointWrapper.style.top = pos.top + '%';
+                    pointWrapper.title = `${char.char_name} (${char.faction || 'Neutro'})`;
+
+                    let color = '#ffd700';
                     if (char.faction) {
                         const f = char.faction.toLowerCase();
-                        if (f.includes('varka') || f === '1') color = 'rgba(255, 50, 50, 0.8)';
-                        if (f.includes('ketra') || f === '2') color = 'rgba(50, 50, 255, 0.8)';
+                        if (f.includes('varka') || f === '1') color = '#ff4444';
+                        if (f.includes('ketra') || f === '2') color = '#4444ff';
                     }
 
-                    point.style.left = pos.left + '%';
-                    point.style.top = pos.top + '%';
-                    point.style.background = color;
-                    point.style.boxShadow = `0 0 15px ${color}`;
+                    pointWrapper.style.background = color;
+                    pointWrapper.style.boxShadow = `0 0 10px ${color}, 0 0 20px ${color}`;
+
+                    const pulse = document.createElement('div');
+                    pulse.className = 'pulse';
+                    pulse.style.border = `2px solid ${color}`;
                     
-                    // Tooltip com nome do char
-                    point.title = char.char_name;
-                    
-                    container.appendChild(point);
+                    pointWrapper.appendChild(pulse);
+                    container.appendChild(pointWrapper);
                 });
             } catch (err) {
-                console.error("Erro ao carregar heatmap:", err);
+                console.error("Erro ao carregar dados:", err);
             }
         }
 
