@@ -40,19 +40,19 @@
 <body>
 
     <div id="ui-overlay">
-        <h1>🔥 Campo de Batalha</h1>
-        <div class="stat">PVPs recentes: <span id="pvp-count">0</span></div>
+        <h1>⚔️ GvE Live Activity</h1>
+        <div class="stat">Jogadores Online: <span id="pvp-count">0</span></div>
+        <div class="stat"><span style="color: #ff4444;">●</span> Faction A | <span style="color: #4444ff;">●</span> Faction B</div>
         <div class="stat" style="color: #4CAF50;">Atualizando em tempo real...</div>
     </div>
 
     <div id="map-container">
-        <!-- Pontos de PVP sero inseridos aqui via JS -->
+        <!-- Atividade ser inserida aqui via JS -->
     </div>
 
     <script>
-        // Funo para converter coordenadas do L2 para % da tela
         function convertCoords(x, y) {
-            // Ajuste fino para o mapa mundial padro
+            // Converso padro L2 (pode precisar de ajuste dependendo do mapa)
             const left = ((x + 131072) / 524288) * 100;
             const top = ((y + 262144) / 524288) * 100;
             return { left, top };
@@ -66,15 +66,29 @@
                 const container = document.getElementById('map-container');
                 document.getElementById('pvp-count').innerText = data.length;
                 
-                // Limpa pontos antigos
                 document.querySelectorAll('.pvp-point').forEach(el => el.remove());
 
-                data.forEach(pvp => {
-                    const pos = convertCoords(pvp.x, pvp.y);
+                data.forEach(char => {
+                    const pos = convertCoords(char.x, char.y);
                     const point = document.createElement('div');
                     point.className = 'pvp-point';
+                    
+                    // Cor baseada na facção
+                    let color = 'rgba(255, 215, 0, 0.7)'; // Neutro (Dourado)
+                    if (char.faction) {
+                        const f = char.faction.toLowerCase();
+                        if (f.includes('varka') || f === '1') color = 'rgba(255, 50, 50, 0.8)';
+                        if (f.includes('ketra') || f === '2') color = 'rgba(50, 50, 255, 0.8)';
+                    }
+
                     point.style.left = pos.left + '%';
                     point.style.top = pos.top + '%';
+                    point.style.background = color;
+                    point.style.boxShadow = `0 0 15px ${color}`;
+                    
+                    // Tooltip com nome do char
+                    point.title = char.char_name;
+                    
                     container.appendChild(point);
                 });
             } catch (err) {

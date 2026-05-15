@@ -2,21 +2,20 @@ const express = require('express');
 const router = express.Router();
 const db = require('./db');
 
-// Endpoint para buscar locais de PVP recente (últimos 30 minutos)
+// Endpoint para buscar locais de jogadores online (Heatmap de Atividade)
 router.get('/pvp', async (req, res) => {
     try {
-        // Exemplo de query buscando logs de PVP. Ajustar conforme as tabelas do seu core.
-        // Se no houver tabela de logs, podemos criar uma trigger no banco.
+        // Buscando a localização de todos os jogadores online na tabela characters
         const [rows] = await db.query(`
-            SELECT x, y, z, victim_id, killer_id, time 
-            FROM pvp_logs 
-            WHERE time > UNIX_TIMESTAMP(NOW() - INTERVAL 30 MINUTE)
-            LIMIT 500
+            SELECT x, y, z, char_name, faction
+            FROM characters 
+            WHERE online = 1
+            LIMIT 1000
         `);
         
         res.json(rows);
     } catch (err) {
-        // Se a tabela no existir, retorna vazio em vez de erro
+        console.error('Erro na query do heatmap:', err);
         res.json([]);
     }
 });
