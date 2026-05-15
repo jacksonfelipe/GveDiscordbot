@@ -1,0 +1,12 @@
+hub.l2jpremium.com.br {
+    # Redireciona o trfego do subdomnio para o nosso Bot na porta 3001
+    reverse_proxy localhost:3001
+    
+    # Ativa compresso para deixar o mapa de calor mais rápido
+    encode gzip zstd
+
+    # Configurao de logs (opcional)
+    log {
+        output file /var/log/caddy/hub_access.log
+    }
+}
