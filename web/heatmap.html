@@ -86,19 +86,26 @@
     <script>
         // Fórmula de calibração para o World Map padrão do Lineage 2
         // O mundo do L2 vai de X: -131072 até ~230000 e Y: -262144 até 262144
+        // Calibração Milimétrica para o World Map Oficial do Lineage 2
         function convertCoords(x, y) {
-            // Ajuste fino baseado na proporção da imagem do mapa mundial
-            const mapWidth = 360448; // Largura total em unidades do jogo
-            const mapHeight = 524288; // Altura total em unidades do jogo
-            const offsetX = 131072;   // Offset para zerar o X
-            const offsetY = 262144;   // Offset para zerar o Y
+            // Dimensões do mundo L2 (padrão Interlude/Classic)
+            const mapXMin = -131072;
+            const mapXMax = 229376;
+            const mapYMin = -262144;
+            const mapYMax = 262144;
 
-            let left = ((x + offsetX) / mapWidth) * 100;
-            let top = ((y + offsetY) / mapHeight) * 100;
+            const mapWidth = mapXMax - mapXMin; // ~360448
+            const mapHeight = mapYMax - mapYMin; // ~524288
 
-            // Inversão ou ajustes finos podem ser necessários dependendo da imagem
-            // Para o mapa padrão, o Y cresce para baixo na tela, mas no jogo o Y negativo é sul.
-            return { left, top };
+            // Cálculo da posição em porcentagem
+            let left = ((x - mapXMin) / mapWidth) * 100;
+            let top = ((y - mapYMin) / mapHeight) * 100;
+
+            // Inversão do Y: No L2, maior Y é Norte (cima). No HTML, menor top é cima.
+            return { 
+                left: left, 
+                top: (100 - top) 
+            };
         }
 
         async function updateHeatmap() {
