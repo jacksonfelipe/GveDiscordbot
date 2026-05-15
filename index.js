@@ -55,7 +55,7 @@ app.get('/', (req, res) => {
     res.send(`
         <body style="background: #111; color: #ffd700; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;">
             <h1>🛡️ L2JPremium GvE Hub</h1>
-            <p style="color: #ccc;">O corao do seu servidor está batendo!</p>
+            <p style="color: #ccc;">O coração do seu servidor está batendo!</p>
             <a href="/heatmap" style="color: #ffd700; text-decoration: none; border: 1px solid #ffd700; padding: 10px 20px; border-radius: 5px;">Abrir Mapa de Calor</a>
         </body>
     `);
