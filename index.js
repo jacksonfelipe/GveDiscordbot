@@ -64,50 +64,70 @@ app.get('/', (req, res) => {
 
 // Rota de Doação (Avisa no Discord com Inteligência de Facção)
 app.all('/api/donations/notify', async (req, res) => {
-    // Uso de optional chaining para evitar o erro de 'undefined'
     const char_name = req.query?.char_name || req.body?.char_name;
     const coins = req.query?.coins || req.body?.coins;
     const db = require('./api/db');
     
-    console.log(`[NOTIFY] Recebida tentativa de aviso: ${char_name} - ${coins} coins`);
+    console.log(`[NOTIFY] Tentativa de aviso: ${char_name} - ${coins} coins`);
 
     if (!char_name || !coins) {
-        console.log(`[NOTIFY] Erro: Dados incompletos recebidos`);
-        return res.status(400).json({ error: 'Missing char_name or coins' });
+        console.log(`[NOTIFY] Erro: Dados insuficientes (Char: ${char_name}, Coins: ${coins})`);
+        return res.status(400).json({ error: 'Missing parameters' });
     }
 
     try {
-        // Busca o canal de forma mais inteligente
-        const channel = client.channels.cache.find(c =>
-            c.name.toLowerCase().includes('doação') ||
-            c.name.toLowerCase().includes('doacao') ||
-            c.name.toLowerCase().includes('donate') ||
-            c.name.toLowerCase().includes('anuncio') ||
-            c.id === '1504617416805333705' // Mantém o ID anterior por precaução
-        );
+        // Busca facção (Opcional - Não trava se o banco falhar)
+        let faction = '';
+        try {
+            const [rows] = await db.query('SELECT faction FROM characters WHERE char_name = ? LIMIT 1', [char_name]);
+            if (rows && rows.length > 0) faction = (rows[0].faction || '').toString().toLowerCase();
+        } catch (dbErr) {
+            console.log(`[NOTIFY] DB Warning: ${dbErr.message}`);
+        }
 
+        // Estilo
+        let color = '#ffffff'; 
+        let factionName = 'Neutro';
+        let thumb = 'https://l2jpremium.com.br/assets/images/pcoin.png';
+
+        if (faction.includes('angel') || faction === '1') {
+            color = '#4444ff'; factionName = 'Angel';
+        } else if (faction.includes('evil') || faction === '2') {
+            color = '#ff4444'; factionName = 'Evil';
+        }
+
+        const channel = client.channels.cache.find(c => 
+            c.name.toLowerCase().includes('doação') || 
+            c.name.toLowerCase().includes('doacao') || 
+            c.name.toLowerCase().includes('donate') || 
+            c.name.toLowerCase().includes('anuncio') ||
+            c.id === '1504617416805333705'
+        );
+        
         if (channel) {
-            console.log(`[NOTIFY] Enviando anúncio para o canal: #${channel.name} (${channel.id})`);
             const embed = new EmbedBuilder()
                 .setTitle('💎 Nova Doação Confirmada!')
                 .setDescription(`O jogador **${char_name}** acaba de adquirir **${coins} P-Coins**!`)
-                .addFields({ name: 'Status', value: '✅ Entrega Automática Concluída', inline: true })
-                .setColor('#00ff00')
-                .setThumbnail('https://l2jpremium.com.br/assets/images/pcoin.png') // Ícone de moeda opcional
-                .setFooter({ text: 'Obrigado por apoiar o L2JPremium!' })
+                .addFields(
+                    { name: 'Doador', value: `👤 ${char_name}`, inline: true },
+                    { name: 'Facção', value: `🛡️ ${factionName}`, inline: true },
+                    { name: 'Quantidade', value: `💰 ${coins} P-Coins`, inline: true }
+                )
+                .setColor(color)
+                .setThumbnail(thumb)
+                .setFooter({ text: 'Obrigado por apoiar o L2JPremium GvE!' })
                 .setTimestamp();
 
             await channel.send({ embeds: [embed] });
-            console.log(`[NOTIFY] Sucesso: Anúncio enviado para ${char_name}`);
+            console.log(`[NOTIFY] Sucesso: Anúncio enviado para ${char_name} (${factionName})`);
+            return res.json({ success: true });
         } else {
-            console.log(`[NOTIFY] ALERTA: Nenhum canal de anúncios encontrado!`);
-            console.log(`[NOTIFY] Canais disponíveis para o bot:`, client.channels.cache.map(c => `${c.name} (${c.id})`).join(', '));
+            console.log(`[NOTIFY] ALERTA: Nenhum canal encontrado!`);
+            return res.status(404).json({ error: 'Channel not found' });
         }
-
-        res.json({ success: true });
     } catch (err) {
-        console.error(`[NOTIFY] Erro fatal ao enviar anúncio:`, err);
-        res.status(500).json({ error: 'Erro ao enviar anúncio' });
+        console.error(`[NOTIFY] Erro Crítico:`, err);
+        return res.status(500).json({ error: 'Internal Error' });
     }
 });
 
