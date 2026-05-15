@@ -131,40 +131,46 @@ app.all('/api/donations/notify', async (req, res) => {
     }
 });
 
-// --- VIGILÂNCIA DE DOAÇÕES (Polling no Banco) ---
+// --- VIGILÂNCIA DUPLA (Monitora Site e Jogo) ---
 let lastCheckedProtocol = 0;
+let lastCheckedDeliveryId = 0;
 
-async function checkNewDonations() {
+async function checkDonationActivity() {
+    const db = require('./api/db');
+    
+    // 1. Monitora site_donations (Aprovação no Site)
     try {
-        const db = require('./api/db');
-        // Busca doações entregues (status 4) recentemente
         const [donations] = await db.query(
-            'SELECT protocolo, account, quant_coins, coins_bonus, ultima_alteracao FROM site_donations WHERE status = 4 AND protocolo > ? ORDER BY protocolo ASC',
+            'SELECT protocolo, account, quant_coins, coins_bonus FROM site_donations WHERE status = 4 AND protocolo > ? ORDER BY protocolo ASC',
             [lastCheckedProtocol]
         );
-
-        if (donations.length > 0) {
-            for (const order of donations) {
-                const totalCoins = parseInt(order.quant_coins) + parseInt(order.coins_bonus);
-                const char_name = await getCharName(order.account);
-                
-                // Envia a notificação (Reutilizando a lógica do Discord)
-                await sendDiscordDonation(char_name, totalCoins);
-                
-                // Atualiza o último protocolo para não repetir
-                if (order.protocolo > lastCheckedProtocol) {
-                    lastCheckedProtocol = order.protocolo;
-                }
-            }
-        } else if (lastCheckedProtocol === 0) {
-            // Inicializa com o último ID do banco na primeira execução
-            const [last] = await db.query('SELECT MAX(protocolo) as maxId FROM site_donations');
-            lastCheckedProtocol = last[0].maxId || 0;
-            console.log(`[DONATE-WATCH] Iniciado. Monitorando a partir do protocolo #${lastCheckedProtocol}`);
+        for (const order of donations) {
+            const total = parseInt(order.quant_coins) + parseInt(order.coins_bonus);
+            const charName = await getCharName(order.account);
+            await sendDiscordAnnouncement('💎 Nova Doação!', charName, total, 'Aprovada no Site');
+            lastCheckedProtocol = Math.max(lastCheckedProtocol, order.protocolo);
         }
-    } catch (err) {
-        console.error(`[DONATE-WATCH] Erro ao verificar banco:`, err.message);
-    }
+        if (lastCheckedProtocol === 0) {
+            const [max] = await db.query('SELECT MAX(protocolo) as id FROM site_donations');
+            lastCheckedProtocol = max[0].id || 0;
+        }
+    } catch (e) { console.error("[WATCH-SITE] Erro:", e.message); }
+
+    // 2. Monitora web_delivery (Entrega no Jogo)
+    try {
+        const [deliveries] = await db.query(
+            'SELECT id, char_name, count FROM web_delivery WHERE id > ? ORDER BY id ASC',
+            [lastCheckedDeliveryId]
+        );
+        for (const deliv of deliveries) {
+            await sendDiscordAnnouncement('🎁 Entrega Concluída!', deliv.char_name, deliv.count, 'Validada no Jogo');
+            lastCheckedDeliveryId = Math.max(lastCheckedDeliveryId, deliv.id);
+        }
+        if (lastCheckedDeliveryId === 0) {
+            const [max] = await db.query('SELECT MAX(id) as id FROM web_delivery');
+            lastCheckedDeliveryId = max[0].id || 0;
+        }
+    } catch (e) { console.error("[WATCH-GAME] Erro:", e.message); }
 }
 
 async function getCharName(account) {
@@ -175,7 +181,7 @@ async function getCharName(account) {
     } catch (e) { return account; }
 }
 
-async function sendDiscordDonation(char_name, coins) {
+async function sendDiscordAnnouncement(title, char_name, coins, statusText) {
     try {
         const db = require('./api/db');
         let faction = '';
@@ -196,25 +202,26 @@ async function sendDiscordDonation(char_name, coins) {
 
         if (channel) {
             const embed = new EmbedBuilder()
-                .setTitle('💎 Nova Doação Confirmada!')
-                .setDescription(`O jogador **${char_name}** da facção **${factionName}** acaba de adquirir **${coins} P-Coins**!`)
+                .setTitle(title)
+                .setDescription(`O jogador **${char_name}** da facção **${factionName}** acaba de receber **${coins} P-Coins**!`)
                 .addFields(
-                    { name: 'Doador', value: `👤 ${char_name}`, inline: true },
+                    { name: 'Jogador', value: `👤 ${char_name}`, inline: true },
+                    { name: 'Status', value: `✅ ${statusText}`, inline: true },
                     { name: 'Quantidade', value: `💰 ${coins} P-Coins`, inline: true }
                 )
                 .setColor(color)
                 .setThumbnail('https://l2jpremium.com.br/assets/images/pcoin.png')
-                .setFooter({ text: 'L2JPremium GvE - Monitoramento Automático' })
+                .setFooter({ text: 'L2JPremium GvE - Monitoramento Ativo' })
                 .setTimestamp();
 
             await channel.send({ embeds: [embed] });
-            console.log(`[DONATE-WATCH] Anúncio enviado: ${char_name}`);
+            console.log(`[WATCH] Anúncio enviado: ${char_name} (${statusText})`);
         }
-    } catch (err) { console.error(`[DONATE-WATCH] Erro no Discord:`, err); }
+    } catch (err) { console.error(`[WATCH] Erro Discord:`, err); }
 }
 
-// Inicia a vigilância a cada 30 segundos
-setInterval(checkNewDonations, 30000);
+// Inicia a vigilância a cada 25 segundos
+setInterval(checkDonationActivity, 25000);
 
 // Outras rotas (Heatmap, etc)
 const heatmapRoutes = require('./api/heatmap');
@@ -223,7 +230,7 @@ app.use('/api/heatmap', heatmapRoutes);
 const PORT = process.env.API_PORT || 3001;
 app.listen(PORT, () => {
     console.log(`[API] Rodando na porta ${PORT}`);
-    checkNewDonations(); // Primeira execução imediata
+    checkNewDeliveries();
 });
 
 client.login(process.env.DISCORD_TOKEN);
