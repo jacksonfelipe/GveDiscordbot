@@ -42,8 +42,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve arquivos estticos (Mapa de Calor)
+// Serve arquivos estáticos (Mapa de Calor)
 app.use('/web', express.static(path.join(__dirname, 'web')));
+app.use(express.static(path.join(__dirname, 'web')));
 
 // Rota amigvel para o mapa
 app.get('/heatmap', (req, res) => {
